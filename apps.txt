@@ -1,0 +1,13 @@
+# app        upstream repo              hub
+photocraft   storytold/photocraft       art
+vectorcraft  storytold/vectorcraft      art
+lightcraft   storytold/lightcraft       art
+filmcraft    storytold/filmcraft        art
+effectcraft  storytold/effectcraft      art
+designcraft  storytold/designcraft      art
+wordcraft    storytold/wordcraft        projects
+gridcraft    storytold/gridcraft        projects
+pdfcraft     storytold/pdfcraft         projects
+deckcraft    storytold/deckcraft        projects
+cadcraft     storytold/cadcraft         projects
+soundcraft   storytold/soundcraft       projects
