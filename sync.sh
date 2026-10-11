@@ -101,16 +101,18 @@ while read -r app repo hub <&3; do
   find "$src" -type d -exec chmod 755 {} +
   find "$src" -type f -exec chmod 644 {} +
 
-  sudo rm -rf "$live.new"
-  sudo cp -a "$src" "$live.new"
-  sudo chown -R root:root "$live.new"
+  # Stage and delete OUTSIDE /var/www, and only rename into it. gzip-static-watch
+  # reacts to every write there: it would gzip a half-copied 56 MB wasm itself,
+  # and racing an rm -rf it leaves orphaned .gz files behind (see the studio's
+  # tools/deploy.sh). $WORK is on the same filesystem, so these are renames.
+  sudo chown -R root:root "$src"
   if [ -d "$live" ]; then
     # One rename swaps the two trees, so a visitor never sees a half-copied
-    # site, and the old build is left at .new to delete.
-    sudo mv --exchange -T "$live.new" "$live"
-    sudo rm -rf "$live.new"
+    # site; the old build ends up in $WORK to be deleted with it.
+    sudo mv --exchange -T "$src" "$live"
+    sudo rm -rf "$src"
   else
-    sudo mv -T "$live.new" "$live"
+    sudo mv -T "$src" "$live"
   fi
   rm -rf "$d"
   echo "$app: $tag installed ($(sudo du -sh "$live" | cut -f1))"

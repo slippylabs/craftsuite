@@ -39,8 +39,21 @@ checks it against the release's `SHA256SUMS.txt`, refuses any absolute or `..`
 path in the zip, strips docs, host samples and stray build output, writes a
 `.gz` beside every `.wasm`/`.js`/`.html`/font (served by nginx's `gzip_static`,
 so a 25-56 MB binary is never compressed per request), and swaps the new tree
-into `/var/www/<app>.slippylabs.com` with a single `mv --exchange`.
+into `/var/www/<app>.slippylabs.com` with a single `mv --exchange`. Staging and
+deletion happen in `/var/tmp` (same filesystem), never inside `/var/www`, where
+gzip-static-watch would react to every half-written file.
 The installed tag is recorded in `.version` there.
+
+## Hub banners
+
+```sh
+~/projects/medievalmmo-dev/venv/bin/python tools/shots.py art ~/art.slippylabs.com/shots
+~/projects/medievalmmo-dev/venv/bin/python tools/shots.py projects ~/projects.slippylabs.com/shots
+```
+
+boots each app against the local origin, waits for its loading overlay to go,
+and writes a 640x360 `<app>.webp` of its start screen. Then regenerate that
+hub's `shots-manifest.js` and bump its `?v=`.
 
 ## nginx
 
