@@ -107,13 +107,18 @@ sudo cp deploy/*craft.slippylabs.conf /etc/nginx/sites-available/
 ```
 
 Hash-named files (`<app>-web-<hash>_bg.wasm` and its `.js`) are cached for a
-year as `immutable`; everything else is `no-cache`, because some ArtCraft
-builds keep the same file names across releases.
+year as `immutable`; everything else is `no-cache`. Builds that ship an
+unhashed module and glue (LightCraft, FilmCraft, EffectCraft) get them renamed
+by `sync.sh` to `<name>-<sha256/16>` with every reference rewritten, so every
+app's big files are content-addressed and a new release always has new names.
 
 ## Cloudflare
 
 Cloudflare does not cache `.wasm` by default, so without a rule every first
-visit is served from the origin. One Cache Rule covers the suite:
+visit is served from the origin. One Cache Rule covers the suite (added
+2026-10-12: URI Full wildcard `https://*craft.slippylabs.com/*.wasm`, eligible
+for cache, defaults for the rest; the dashboard's "no proxied record for
+craft.slippylabs.com" warning is expected):
 *hostname ends with `craft.slippylabs.com` and URI path ends with `.wasm`* →
 eligible for cache, respect origin TTL.
 

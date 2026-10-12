@@ -134,6 +134,28 @@ while read -r app repo hub mode <&3; do
   # Some builds ship .br/.gz copies. This nginx has no brotli module, and our
   # own gzip replaces theirs so every app is compressed the same way.
   find "$src" -type f -name '*.br' -delete
+  # Some builds (lightcraft, filmcraft, effectcraft) keep the same module and
+  # glue names in every release, so they can only be served no-cache -- and
+  # Cloudflare's zone Browser Cache TTL still lets a browser hold them 4 h,
+  # long enough to pair an old glue with a new module after an update. Give
+  # the pair content-hashed names like the Trunk builds have, and rewrite the
+  # text files that name them (index.html, worker.js, the glue, a service
+  # worker's precache list). The binaries only name worker.js and
+  # audio-worklet.js, which stay as they are.
+  for w in "$src"/*_bg.wasm; do
+    [ -e "$w" ] || continue
+    base=$(basename "$w" _bg.wasm)
+    [[ $base =~ -[0-9a-f]{8,}$ ]] && continue    # already hashed
+    [ -f "$src/$base.js" ] || continue
+    new=$base-$(cat "$w" "$src/$base.js" | sha256sum | cut -c1-16)
+    mv "$w" "$src/${new}_bg.wasm"
+    mv "$src/$base.js" "$src/$new.js"
+    find "$src" -type f \( -name '*.html' -o -name '*.js' -o -name '*.webmanifest' -o -name '*.json' \) \
+      -exec sed -i -e "s/${base}_bg\.wasm/${new}_bg.wasm/g" -e "s/${base}\.js/${new}.js/g" {} +
+    if grep -rqs -e "${base}_bg\.wasm" -e "${base}\.js" "$src" --include='*.html' --include='*.js' --include='*.webmanifest' --include='*.json'; then
+      echo "$app: a reference to $base survived the rename" >&2; exit 1
+    fi
+  done
   find "$src" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \
     -o -name '*.otf' -o -name '*.ttf' -o -name '*.json' \) -exec gzip -9kfn {} +
   echo "$want" > "$src/.version"
