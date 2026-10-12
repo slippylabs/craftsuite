@@ -52,31 +52,55 @@ if [ "$VHOSTS" = 1 ]; then
   exit 0
 fi
 
-AI_MARKERS='whisper|kokoro|mobilesam|mediapipe|onnxruntime|\.onnx\b|\.safetensors|\brten\b|\bocrs\b|burn_tensor|burn_core|AI Denoise|AI assistant|Bring your own model'
+# No app here may use AI, checked two ways (see the loop below).
+#
+# ML_CODE: compiled machine-learning code. Rust keeps the source path of
+# every function that can panic, so a linked ML runtime or AI module leaves
+# its path in the wasm (".../rten-0.26.0/src/...", "crates/segment/src/
+# mobilesam.rs"). The leading "/" keeps crates like i_key_sort-0.11.0 from
+# matching "ort". Applies to every app.
+ML_CODE='/(candle-(core|nn|transformers)|rten(-[a-z]+)?|ocrs|ort(-sys)?|burn(-[a-z]+)?|tract-[a-z]+|onnxruntime[a-z-]*)-[0-9][0-9.]*/src|crates/(speech/src/whisper|tts/src/kokoro|segment/src/(mobilesam|mediapipe|tflite|nn|pt)\.rs|denoise/src|faces/src)'
+# AI_NAMES: AI feature names and model formats. Applies to apps used as
+# upstream ships them, which we cannot edit, so a name means the feature
+# is there. NOT to noai builds: their patches remove the features, but the
+# names survive as dead text (every language's "Automatically transcribe
+# clips" in the i18n tables), so for those ML_CODE is the proof.
+AI_NAMES='whisper|kokoro|mobilesam|mediapipe|onnxruntime|\.onnx\b|\.safetensors|\brten\b|\bocrs\b|burn_tensor|burn_core|AI Denoise|AI assistant|Bring your own model'
 
 WORK=$(mktemp -d /var/tmp/craft.XXXXXX)
 trap 'rm -rf "$WORK"' EXIT
 
 # Read the list on fd 3: gh and sudo inside the loop would otherwise eat stdin.
-while read -r app repo hub <&3; do
+while read -r app repo hub mode <&3; do
   [ -n "$app" ] && wanted "$app" || continue
   live=/var/www/$app.slippylabs.com
   tag=$(gh release view -R "$repo" --json tagName -q .tagName)
   ver=${tag#v}
+  # A source-built app is recorded as "<tag>+noai", so a later switch between
+  # the upstream zip and our build is never mistaken for "already live".
+  want=$tag
+  [ "${mode:-}" = noai ] && want=$tag+noai
   have=$(sudo cat "$live/.version" 2>/dev/null || true)
-  if [ "$FORCE" = 0 ] && [ "$have" = "$tag" ]; then
-    echo "$app: $tag already live"
+  if [ "$FORCE" = 0 ] && [ "$have" = "$want" ]; then
+    echo "$app: $want already live"
     continue
   fi
-  echo "$app: ${have:-none} -> $tag"
+  echo "$app: ${have:-none} -> $want"
 
   d=$WORK/$app
   mkdir -p "$d/dl" "$d/x"
   zip=$app-web-$ver.zip
-  gh release download "$tag" -R "$repo" -p "$zip" -p SHA256SUMS.txt -D "$d/dl"
-  sum=$(awk -v f="$zip" '$2 == f || $2 == "*"f { print $1 }' "$d/dl/SHA256SUMS.txt")
-  if [ -z "$sum" ]; then echo "$app: $zip is not in SHA256SUMS.txt" >&2; exit 1; fi
-  echo "$sum  $d/dl/$zip" | sha256sum -c --quiet -
+  if [ "${mode:-}" = noai ]; then
+    # Upstream's zip carries AI features; build it ourselves with them taken
+    # out (noai/<app>.py). This takes minutes, not seconds.
+    built=$(noai/build.sh "$app" "$repo" "$tag" "$d/dl")
+    [ "$(basename "$built")" = "$zip" ] || { echo "$app: build wrote $built, expected $zip" >&2; exit 1; }
+  else
+    gh release download "$tag" -R "$repo" -p "$zip" -p SHA256SUMS.txt -D "$d/dl"
+    sum=$(awk -v f="$zip" '$2 == f || $2 == "*"f { print $1 }' "$d/dl/SHA256SUMS.txt")
+    if [ -z "$sum" ]; then echo "$app: $zip is not in SHA256SUMS.txt" >&2; exit 1; fi
+    echo "$sum  $d/dl/$zip" | sha256sum -c --quiet -
+  fi
 
   # A release zip is untrusted input: refuse absolute or parent paths rather
   # than relying on unzip's own sanitising.
@@ -87,14 +111,16 @@ while read -r app repo hub <&3; do
   src=$d/x/$app-web-$ver
   [ -f "$src/index.html" ] || { echo "$app: no index.html in $zip" >&2; exit 1; }
 
-  # No app here may use AI. A release that adds it is refused and the live
-  # build is left alone. The markers are ML runtimes, model formats and the
-  # feature names that the four removed apps carried (see apps.txt); "onnx"
-  # alone is too loose -- deckcraft's binary holds the bytes "OnnXX".
-  ai=$(find "$src" -type f \( -name '*.wasm' -o -name '*.js' \) -exec strings -n 4 {} + |
-    LC_ALL=C grep -o -i -E "$AI_MARKERS" | sort -u | paste -sd, - || true)
+  # No app here may use AI: a build that carries it -- an upstream release
+  # that adds it, or a noai build whose patch missed something -- is refused
+  # and the live build is left alone.
+  strs=$(find "$src" -type f \( -name '*.wasm' -o -name '*.js' \) -exec strings -n 4 {} +)
+  ai=$(LC_ALL=C grep -o -E "$ML_CODE" <<<"$strs" | sort -u | paste -sd, - || true)
+  if [ -z "$ai" ] && [ "${mode:-}" != noai ]; then
+    ai=$(LC_ALL=C grep -o -i -E "$AI_NAMES" <<<"$strs" | sort -u | paste -sd, - || true)
+  fi
   if [ -n "$ai" ]; then
-    echo "$app: $tag REFUSED -- AI markers in the build: $ai" >&2
+    echo "$app: $want REFUSED -- AI in the build: $ai" >&2
     exit 1
   fi
 
@@ -110,7 +136,7 @@ while read -r app repo hub <&3; do
   find "$src" -type f -name '*.br' -delete
   find "$src" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \
     -o -name '*.otf' -o -name '*.ttf' -o -name '*.json' \) -exec gzip -9kfn {} +
-  echo "$tag" > "$src/.version"
+  echo "$want" > "$src/.version"
   find "$src" -type d -exec chmod 755 {} +
   find "$src" -type f -exec chmod 644 {} +
 
@@ -128,5 +154,5 @@ while read -r app repo hub <&3; do
     sudo mv -T "$src" "$live"
   fi
   rm -rf "$d"
-  echo "$app: $tag installed ($(sudo du -sh "$live" | cut -f1))"
+  echo "$app: $want installed ($(sudo du -sh "$live" | cut -f1))"
 done 3< <(grep -v '^#' apps.txt)
