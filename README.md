@@ -1,6 +1,6 @@
 # Craft Suite
 
-The twelve [ArtCraft](https://getartcraft.com/) "Crafting Apps", hosted on
+Eight of the [ArtCraft](https://getartcraft.com/) "Crafting Apps", hosted on
 slippylabs.com each on its own subdomain, exactly as their authors ship them.
 This repo is only the glue: the app list, an install/update script and the
 nginx vhosts. The apps themselves are open source (Apache-2.0 / MIT) and are
@@ -11,16 +11,30 @@ code lives here.
 |---|---|---|
 | PhotoCraft (image editor) | photocraft.slippylabs.com | art.slippylabs.com |
 | VectorCraft (vector illustration) | vectorcraft.slippylabs.com | art |
-| LightCraft (photo library + raw developer) | lightcraft.slippylabs.com | art |
-| FilmCraft (video editor) | filmcraft.slippylabs.com | art |
-| EffectCraft (motion graphics) | effectcraft.slippylabs.com | art |
 | DesignCraft (page layout) | designcraft.slippylabs.com | art |
 | WordCraft (word processor) | wordcraft.slippylabs.com | projects.slippylabs.com |
 | GridCraft (spreadsheets) | gridcraft.slippylabs.com | projects |
-| PdfCraft (PDF workbench) | pdfcraft.slippylabs.com | projects |
 | DeckCraft (slides) | deckcraft.slippylabs.com | projects |
 | CADCraft (CAD + drafting) | cadcraft.slippylabs.com | projects |
 | SoundCraft (DAW) | soundcraft.slippylabs.com | projects |
+
+## No AI
+
+None of the apps here may use AI. Four of the twelve ArtCraft apps ship AI
+features (all opt-in, but present), so they are not hosted, and their
+subdomains 301 to the hub that used to list them (`deploy/retired.conf`):
+
+| Removed | Its AI |
+|---|---|
+| LightCraft | AI Denoise (an installable ONNX/safetensors model) |
+| FilmCraft | Whisper speech-to-text and Kokoro voices, downloaded from Hugging Face |
+| EffectCraft | MobileSAM Roto Brush and MediaPipe face tracking |
+| PdfCraft | Neural OCR (ocrs/rten) and a bring-your-own-model AI assistant |
+
+`sync.sh` enforces it: before swapping a build in, it scans the wasm and glue
+for ML runtimes, model formats and those feature names (`AI_MARKERS`) and
+refuses the release, leaving the live build alone, if any turn up. PhotoCraft's
+Select Subject and Content-Aware Fill are classical algorithms and pass.
 
 Each one is a static site: an `index.html`, a wasm-bindgen glue module and a
 single WebAssembly binary of 13-56 MB. Everything runs in the visitor's
@@ -66,8 +80,8 @@ sudo cp deploy/*craft.slippylabs.conf /etc/nginx/sites-available/
 ```
 
 Hash-named files (`<app>-web-<hash>_bg.wasm` and its `.js`) are cached for a
-year as `immutable`; everything else is `no-cache`, because some apps
-(LightCraft, FilmCraft, EffectCraft) keep the same file names across releases.
+year as `immutable`; everything else is `no-cache`, because some ArtCraft
+builds keep the same file names across releases.
 
 ## Cloudflare
 
@@ -78,6 +92,6 @@ eligible for cache, respect origin TTL.
 
 ## Credits
 
-All twelve apps are © their authors at
+All of these apps are © their authors at
 [github.com/storytold](https://github.com/storytold), licensed Apache-2.0 or
 MIT; each docroot keeps the licence and notice files from its release.

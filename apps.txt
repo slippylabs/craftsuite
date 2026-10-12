@@ -1,13 +1,16 @@
 # app        upstream repo              hub
+#
+# No app here may use AI (the site owner's rule, 2026-10-11). Four of the
+# twelve ArtCraft apps were removed for it and must not come back while they
+# ship it: lightcraft (AI Denoise), filmcraft (Whisper transcription, Kokoro
+# voices), effectcraft (MobileSAM roto brush, MediaPipe face tracking) and
+# pdfcraft (neural OCR, an AI assistant). sync.sh refuses any build that
+# carries AI markers.
 photocraft   storytold/photocraft       art
 vectorcraft  storytold/vectorcraft      art
-lightcraft   storytold/lightcraft       art
-filmcraft    storytold/filmcraft        art
-effectcraft  storytold/effectcraft      art
 designcraft  storytold/designcraft      art
 wordcraft    storytold/wordcraft        projects
 gridcraft    storytold/gridcraft        projects
-pdfcraft     storytold/pdfcraft         projects
 deckcraft    storytold/deckcraft        projects
 cadcraft     storytold/cadcraft         projects
 soundcraft   storytold/soundcraft       projects
