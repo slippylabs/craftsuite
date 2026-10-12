@@ -1,16 +1,19 @@
-# app        upstream repo              hub
+# app        upstream repo              hub       build
 #
-# No app here may use AI (the site owner's rule, 2026-10-11). Four of the
-# twelve ArtCraft apps were removed for it and must not come back while they
-# ship it: lightcraft (AI Denoise), filmcraft (Whisper transcription, Kokoro
-# voices), effectcraft (MobileSAM roto brush, MediaPipe face tracking) and
-# pdfcraft (neural OCR, an AI assistant). sync.sh refuses any build that
-# carries AI markers.
+# No app here may use AI (the site owner's rule, 2026-10-11): an AI feature
+# inside an app is removed, an app that is mostly AI is not hosted. Rows
+# marked "noai" are built from source by noai/build.sh with noai/<app>.py
+# applied, which strips their AI features; the rest are used as upstream
+# ships them. sync.sh refuses any build that still carries AI.
 photocraft   storytold/photocraft       art
 vectorcraft  storytold/vectorcraft      art
 designcraft  storytold/designcraft      art
+lightcraft   storytold/lightcraft       art       noai
+filmcraft    storytold/filmcraft        art       noai
+effectcraft  storytold/effectcraft      art       noai
 wordcraft    storytold/wordcraft        projects
 gridcraft    storytold/gridcraft        projects
+pdfcraft     storytold/pdfcraft         projects  noai
 deckcraft    storytold/deckcraft        projects
 cadcraft     storytold/cadcraft         projects
 soundcraft   storytold/soundcraft       projects

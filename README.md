@@ -1,7 +1,7 @@
 # Craft Suite
 
-Eight of the [ArtCraft](https://getartcraft.com/) "Crafting Apps", hosted on
-slippylabs.com each on its own subdomain, exactly as their authors ship them.
+The twelve [ArtCraft](https://getartcraft.com/) "Crafting Apps", hosted on
+slippylabs.com each on its own subdomain, with no AI features (see below).
 This repo is only the glue: the app list, an install/update script and the
 nginx vhosts. The apps themselves are open source (Apache-2.0 / MIT) and are
 built and released by [storytold](https://github.com/storytold); none of their
@@ -11,30 +11,54 @@ code lives here.
 |---|---|---|
 | PhotoCraft (image editor) | photocraft.slippylabs.com | art.slippylabs.com |
 | VectorCraft (vector illustration) | vectorcraft.slippylabs.com | art |
+| LightCraft (photo library + raw developer) * | lightcraft.slippylabs.com | art |
+| FilmCraft (video editor) * | filmcraft.slippylabs.com | art |
+| EffectCraft (motion graphics) * | effectcraft.slippylabs.com | art |
 | DesignCraft (page layout) | designcraft.slippylabs.com | art |
 | WordCraft (word processor) | wordcraft.slippylabs.com | projects.slippylabs.com |
 | GridCraft (spreadsheets) | gridcraft.slippylabs.com | projects |
+| PdfCraft (PDF workbench) * | pdfcraft.slippylabs.com | projects |
 | DeckCraft (slides) | deckcraft.slippylabs.com | projects |
 | CADCraft (CAD + drafting) | cadcraft.slippylabs.com | projects |
 | SoundCraft (DAW) | soundcraft.slippylabs.com | projects |
 
+\* built here from source with its AI features removed.
+
 ## No AI
 
-None of the apps here may use AI. Four of the twelve ArtCraft apps ship AI
-features (all opt-in, but present), so they are not hosted, and their
-subdomains 301 to the hub that used to list them (`deploy/retired.conf`):
+No app here may use AI. The rule: an AI feature inside an app is taken out;
+an app that is mostly AI (ArtCraft's own AI image/video studio) is not hosted.
 
-| Removed | Its AI |
+Eight apps have no AI and are used exactly as their authors release them.
+Four ship AI features, so `noai/build.sh` builds them from source with a
+patch, `noai/<app>.py`, that removes those features:
+
+| App | What the patch removes |
 |---|---|
-| LightCraft | AI Denoise (an installable ONNX/safetensors model) |
-| FilmCraft | Whisper speech-to-text and Kokoro voices, downloaded from Hugging Face |
-| EffectCraft | MobileSAM Roto Brush and MediaPipe face tracking |
-| PdfCraft | Neural OCR (ocrs/rten) and a bring-your-own-model AI assistant |
+| LightCraft | AI Denoise (controls and Settings tab), the Object and Describe AI masks, face detection and recognition (People view, face boxes, Faces settings, face-model dialog) and every `denoise.*`/`faces.*` command. The Subject/Sky/Background masks are classical heuristics and stay. |
+| FilmCraft | Speech-to-text (the Transcribe button, Transcribe Sequence, auto-transcribe, the Transcription settings, model downloads) and the Kokoro "natural voices" with their download. Imported transcripts and the built-in formant voices are not AI and stay. |
+| EffectCraft | The MobileSAM and MediaPipe networks (compiled out), their Settings pages and the `roto.model.*`/`face.model.*` commands. Roto Brush and face tracking keep their classical engines. |
+| PdfCraft | OCR (the ocrs/rten neural recogniser and the Scan & OCR tools) and the bring-your-own-model AI assistant. |
 
-`sync.sh` enforces it: before swapping a build in, it scans the wasm and glue
-for ML runtimes, model formats and those feature names (`AI_MARKERS`) and
-refuses the release, leaving the live build alone, if any turn up. PhotoCraft's
-Select Subject and Content-Aware Fill are classical algorithms and pass.
+Each patch names the exact upstream text it replaces and fails if that text
+has moved, so a new release can't quietly keep a feature the patch used to
+remove. These are modified builds of Apache-2.0/MIT software; the
+modifications are the patches in `noai/`.
+
+`sync.sh` then checks every build before it goes live, and refuses it,
+leaving the live build alone, if:
+
+- **`ML_CODE`**: the wasm contains compiled machine-learning code. Rust keeps
+  the source path of anything that can panic, so a linked ML runtime or AI
+  module shows up by path (`/rten-0.26.0/src/...`, `crates/faces/src/...`).
+  Applies to every app.
+- **`AI_NAMES`**: the build names an AI feature or model format. Applies only
+  to the eight upstream builds; a source-built app keeps those names as dead
+  text in its translation tables after the feature is gone.
+
+Building needs the `wasm32-unknown-unknown` target, `wasm-bindgen-cli` at the
+version the app pins, binaryen's `wasm-opt`, Trunk (PdfCraft) and `zip`. Each
+build takes 18-25 minutes and runs in a 9 GB, no-swap, nice-15 user scope.
 
 Each one is a static site: an `index.html`, a wasm-bindgen glue module and a
 single WebAssembly binary of 13-56 MB. Everything runs in the visitor's
@@ -47,6 +71,9 @@ browser; there is no server-side code and nothing is uploaded.
 ./sync.sh photocraft     # just one
 ./sync.sh --force ...    # reinstall the same version
 ```
+
+Rows marked `noai` in `apps.txt` are built from source instead of downloaded
+(see No AI above) and recorded as `<tag>+noai`.
 
 For each app it reads the latest GitHub release, downloads `<app>-web-<ver>.zip`,
 checks it against the release's `SHA256SUMS.txt`, refuses any absolute or `..`
