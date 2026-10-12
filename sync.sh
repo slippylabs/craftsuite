@@ -52,6 +52,8 @@ if [ "$VHOSTS" = 1 ]; then
   exit 0
 fi
 
+AI_MARKERS='whisper|kokoro|mobilesam|mediapipe|onnxruntime|\.onnx\b|\.safetensors|\brten\b|\bocrs\b|burn_tensor|burn_core|AI Denoise|AI assistant|Bring your own model'
+
 WORK=$(mktemp -d /var/tmp/craft.XXXXXX)
 trap 'rm -rf "$WORK"' EXIT
 
@@ -84,6 +86,17 @@ while read -r app repo hub <&3; do
   unzip -q "$d/dl/$zip" -d "$d/x"
   src=$d/x/$app-web-$ver
   [ -f "$src/index.html" ] || { echo "$app: no index.html in $zip" >&2; exit 1; }
+
+  # No app here may use AI. A release that adds it is refused and the live
+  # build is left alone. The markers are ML runtimes, model formats and the
+  # feature names that the four removed apps carried (see apps.txt); "onnx"
+  # alone is too loose -- deckcraft's binary holds the bytes "OnnXX".
+  ai=$(find "$src" -type f \( -name '*.wasm' -o -name '*.js' \) -exec strings -n 4 {} + |
+    LC_ALL=C grep -o -i -E "$AI_MARKERS" | sort -u | paste -sd, - || true)
+  if [ -n "$ai" ]; then
+    echo "$app: $tag REFUSED -- AI markers in the build: $ai" >&2
+    exit 1
+  fi
 
   # Host-specific samples and docs; nginx is configured by deploy/ instead.
   rm -f "$src/README.md" "$src/HOSTING.md" "$src/_headers" "$src/.htaccess"
