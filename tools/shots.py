@@ -3,6 +3,7 @@
 
     shots.py art      ~/art.slippylabs.com/shots
     shots.py projects ~/projects.slippylabs.com/shots
+    shots.py music    ~/music.slippylabs.com/shots   # then tools/stamp_shots.py there
     shots.py art DIR photocraft vectorcraft     # just these
 
 Each app is booted headlessly against the LOCAL origin (so a fresh install
