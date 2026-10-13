@@ -16,4 +16,4 @@ gridcraft    storytold/gridcraft        projects
 pdfcraft     storytold/pdfcraft         projects  noai
 deckcraft    storytold/deckcraft        projects
 cadcraft     storytold/cadcraft         projects
-soundcraft   storytold/soundcraft       projects
+soundcraft   storytold/soundcraft       music

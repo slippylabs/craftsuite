@@ -20,7 +20,7 @@ code lives here.
 | PdfCraft (PDF workbench) * | pdfcraft.slippylabs.com | projects |
 | DeckCraft (slides) | deckcraft.slippylabs.com | projects |
 | CADCraft (CAD + drafting) | cadcraft.slippylabs.com | projects |
-| SoundCraft (DAW) | soundcraft.slippylabs.com | projects |
+| SoundCraft (DAW) | soundcraft.slippylabs.com | music |
 
 \* built here from source with its AI features removed.
 
@@ -90,11 +90,13 @@ The installed tag is recorded in `.version` there.
 ```sh
 ~/projects/medievalmmo-dev/venv/bin/python tools/shots.py art ~/art.slippylabs.com/shots
 ~/projects/medievalmmo-dev/venv/bin/python tools/shots.py projects ~/projects.slippylabs.com/shots
+~/projects/medievalmmo-dev/venv/bin/python tools/shots.py music ~/music.slippylabs.com/shots
 ```
 
 boots each app against the local origin, waits for its loading overlay to go,
 and writes a 640x360 `<app>.webp` of its start screen. Then regenerate that
-hub's `shots-manifest.js` and bump its `?v=`.
+hub's `shots-manifest.js` and bump its `?v=` (the music hub bakes hashes
+into its HTML instead: run its `tools/stamp_shots.py`).
 
 ## nginx
 
