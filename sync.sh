@@ -179,6 +179,9 @@ while read -r app repo hub mode <&3; do
       echo "$app: a reference to $base survived the rename" >&2; exit 1
     fi
   done
+  # A desktop-width layout viewport so the app is usable on a phone (see the
+  # script's docstring).
+  python3 tools/mobilefit.py "$src"
   find "$src" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \
     -o -name '*.otf' -o -name '*.ttf' -o -name '*.json' \) -exec gzip -9kfn {} +
   echo "$want" > "$src/.version"
