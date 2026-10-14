@@ -1,7 +1,8 @@
 # Craft Suite
 
 The twelve [ArtCraft](https://getartcraft.com/) "Crafting Apps", hosted on
-slippylabs.com each on its own subdomain, with no AI features (see below).
+slippylabs.com each on its own subdomain, with no AI features and no links
+out to the ArtCraft community (see below).
 This repo is only the glue: the app list, an install/update script and the
 nginx vhosts. The apps themselves are open source (Apache-2.0 / MIT) and are
 built and released by [storytold](https://github.com/storytold); none of their
@@ -22,16 +23,34 @@ code lives here.
 | CADCraft (CAD + drafting) | cadcraft.slippylabs.com | projects |
 | SoundCraft (DAW) | soundcraft.slippylabs.com | music |
 
-\* built here from source with its AI features removed.
+Every app is built here from source with its promo links removed; \* also
+with its AI features removed.
+
+## No promo links
+
+Upstream, every app links out to the ArtCraft community and project: a
+Discord pill in the header or title bar, "Join our Discord" buttons on the
+Home/start screen and in About, Help-menu entries for Discord, getartcraft.com,
+the app's page, its GitHub repo and issue tracker (and, in some, help docs
+that only open GitHub), and contributors' GitHub profiles in About >
+Contributors. None of that belongs on a hosted copy, so `noai/build.sh` builds
+every app from source with `delink/<app>.py` applied, which removes those
+buttons, menu items and commands. Contributor names stay, as plain text, and so
+do the licence and copyright lines. Three apps' sample content plugged the app
+(DeckCraft's sample deck, FilmCraft's Credits template, WordCraft's sample
+document and its LaTeX export header); those lines go too.
+
+Each patch ends with `scrub()` (`noai/_patch.py`), which blanks every
+remaining promo URL in the source -- link tables, tooltips and every
+language's translation of them -- so nothing left in the app can open one.
 
 ## No AI
 
 No app here may use AI. The rule: an AI feature inside an app is taken out;
 an app that is mostly AI (ArtCraft's own AI image/video studio) is not hosted.
 
-Eight apps have no AI and are used exactly as their authors release them.
-Four ship AI features, so `noai/build.sh` builds them from source with a
-patch, `noai/<app>.py`, that removes those features:
+Four apps ship AI features, so their builds also apply a patch,
+`noai/<app>.py`, that removes those features:
 
 | App | What the patch removes |
 |---|---|
@@ -43,7 +62,7 @@ patch, `noai/<app>.py`, that removes those features:
 Each patch names the exact upstream text it replaces and fails if that text
 has moved, so a new release can't quietly keep a feature the patch used to
 remove. These are modified builds of Apache-2.0/MIT software; the
-modifications are the patches in `noai/`.
+modifications are the patches in `delink/` and `noai/`.
 
 `sync.sh` then checks every build before it goes live, and refuses it,
 leaving the live build alone, if:
@@ -53,12 +72,18 @@ leaving the live build alone, if:
   module shows up by path (`/rten-0.26.0/src/...`, `crates/faces/src/...`).
   Applies to every app.
 - **`AI_NAMES`**: the build names an AI feature or model format. Applies only
-  to the eight upstream builds; a source-built app keeps those names as dead
-  text in its translation tables after the feature is gone.
+  to the eight apps that never had one (no `noai/<app>.py`); a patched app
+  keeps those names as dead text in its translation tables after the feature
+  is gone.
+- **`PROMO`**: the build still contains a Discord invite, a getartcraft.com
+  URL or a storytold GitHub URL (the craft-fonts repo, named in font
+  attribution, excepted). Applies to every app.
 
 Building needs the `wasm32-unknown-unknown` target, `wasm-bindgen-cli` at the
-version the app pins, binaryen's `wasm-opt`, Trunk (PdfCraft) and `zip`. Each
-build takes 18-25 minutes and runs in a 9 GB, no-swap, nice-15 user scope.
+version the app pins, binaryen's `wasm-opt`, Trunk and `zip`. A first build
+takes 18-25 minutes (a few with a warm `/var/tmp/noai-target/<app>`) and runs
+in a no-swap, nice-15 user scope capped at 4 GB (`NOAI_MEM_MAX`). Run them
+one at a time.
 
 Each one is a static site: an `index.html`, a wasm-bindgen glue module and a
 single WebAssembly binary of 13-56 MB. Everything runs in the visitor's
@@ -70,13 +95,17 @@ browser; there is no server-side code and nothing is uploaded.
 ./sync.sh                # every app whose live copy is behind its latest release
 ./sync.sh photocraft     # just one
 ./sync.sh --force ...    # reinstall the same version
+./sync.sh --rebuild ...  # rebuild the live version (after a patch change)
 ```
 
-Rows marked `noai` in `apps.txt` are built from source instead of downloaded
-(see No AI above) and recorded as `<tag>+noai`.
+Rows marked `src` in `apps.txt` (all of them) are built from source instead
+of downloaded and recorded as `<tag>+src`. A new upstream release has to get
+past both patches -- `sub()` fails if the text it removes has moved -- and the
+three checks; fix the patch, don't loosen a check.
 
-For each app it reads the latest GitHub release, downloads `<app>-web-<ver>.zip`,
-checks it against the release's `SHA256SUMS.txt`, refuses any absolute or `..`
+For each app it reads the latest GitHub release and either builds it (`src`)
+or downloads `<app>-web-<ver>.zip` and checks it against the release's
+`SHA256SUMS.txt`. It refuses any absolute or `..`
 path in the zip, strips docs, host samples and stray build output, writes a
 `.gz` beside every `.wasm`/`.js`/`.html`/font (served by nginx's `gzip_static`,
 so a 25-56 MB binary is never compressed per request), and swaps the new tree
