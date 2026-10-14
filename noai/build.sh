@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Build an ArtCraft app's web zip from source with its AI features removed.
+# Build an ArtCraft app's web zip from source, without its promo links and
+# AI features.
 #
 #   noai/build.sh <app> <repo> <tag> <outdir>
 #
-# Clones <repo> at <tag>, applies noai/<app>.py (which fails if any edit no
-# longer matches upstream), checks out the craft-fonts commit the release
+# Clones <repo> at <tag>, applies delink/<app>.py (every app: Discord,
+# website, GitHub and issue links out) and noai/<app>.py (the apps that have
+# AI features), each of which fails if any edit no longer matches upstream,
+# checks out the craft-fonts commit the release
 # workflow pins, and runs the app's own packaging/web/package.sh -- the same
 # recipe its release CI uses. Prints the path of the zip it wrote.
 #
@@ -23,7 +26,8 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 work=$(mktemp -d /var/tmp/noai-build.XXXXXX)
 trap 'rm -rf "$work"' EXIT
 git clone -q --depth 1 --branch "$tag" "https://github.com/$repo" "$work/src" 2>/dev/null
-python3 -E -s "$HERE/$app.py" "$work/src" >&2
+python3 -E -s "$HERE/../delink/$app.py" "$work/src" >&2
+if [ -f "$HERE/$app.py" ]; then python3 -E -s "$HERE/$app.py" "$work/src" >&2; fi
 
 fonts=$(grep -A3 'repository: storytold/craft-fonts' "$work/src/.github/workflows/release.yml" 2>/dev/null |
   grep -oE 'ref: [0-9a-f]{40}' | head -1 | cut -d' ' -f2 || true)
@@ -39,13 +43,23 @@ export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-2}
 export CARGO_TARGET_DIR=/var/tmp/noai-target/$app
 mkdir -p "$CARGO_TARGET_DIR"
 case $app in
+  # Fat-LTO wasm links are the biggest allocations this box makes. Without
+  # cross-crate LTO the link is far lighter, and wasm-opt still optimises the
+  # result. The variable must name the profile package.sh actually builds.
   effectcraft)
-    # Its 58 MB module's LTO link is the biggest allocation this box makes.
-    # On a box already deep in swap, systemd-oomd killed it twice at that
-    # step (peak 3.7 GB, under the scope's cap -- the kill is for user.slice
-    # PRESSURE). Without cross-crate LTO the link is far lighter; wasm-opt
-    # still optimises the result.
+    # "release". On a box already deep in swap, systemd-oomd killed it twice
+    # at its LTO link (peak 3.7 GB, under the scope's cap -- the kill is for
+    # user.slice PRESSURE).
     export CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 ;;
+  photocraft)
+    # "wasm-release", which sets lto = "fat" itself, so the RELEASE variables
+    # don't reach it. Its fat link peaked at 4.9 GB on 2026-10-13 (more than
+    # the 4G cap now allows) and took live sessions down with it.
+    # Without fat LTO the wasm is ~27 MB, over package.sh's 24 MiB gate. That
+    # gate is Cloudflare Pages' upload cap; nginx serves these files here and
+    # the Cloudflare cache takes far bigger ones (other apps ship up to 56 MB).
+    export CARGO_PROFILE_WASM_RELEASE_LTO=false CARGO_PROFILE_WASM_RELEASE_CODEGEN_UNITS=16
+    export PHOTOCRAFT_WASM_MAX_BYTES=$((40 * 1024 * 1024)) ;;
 esac
 mem_max=${NOAI_MEM_MAX:-4G}
 rc=0

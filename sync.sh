@@ -5,6 +5,9 @@
 #                           not the latest upstream release
 #   sync.sh photocraft ...  only these apps
 #   sync.sh --force ...     reinstall even if the version already matches
+#   sync.sh --rebuild ...   rebuild the version that is live now instead of
+#                           moving to the latest release (after a patch
+#                           change)
 #   sync.sh --vhosts        render deploy/<app>.slippylabs.conf from the
 #                           template (does not touch /etc/nginx)
 #
@@ -16,13 +19,15 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 FORCE=0
+REBUILD=0
 VHOSTS=0
 WANT=()
 for a in "$@"; do
   case "$a" in
     --force) FORCE=1 ;;
+    --rebuild) REBUILD=1 FORCE=1 ;;
     --vhosts) VHOSTS=1 ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     -*) echo "unknown option $a" >&2; exit 2 ;;
     *) WANT+=("$a") ;;
   esac
@@ -61,10 +66,18 @@ fi
 # matching "ort". Applies to every app.
 ML_CODE='/(candle-(core|nn|transformers)|rten(-[a-z]+)?|ocrs|ort(-sys)?|burn(-[a-z]+)?|tract-[a-z]+|onnxruntime[a-z-]*)-[0-9][0-9.]*/src|crates/(speech/src/whisper|tts/src/kokoro|segment/src/(mobilesam|mediapipe|tflite|nn|pt)\.rs|denoise/src|faces/src)'
 # AI_NAMES: AI feature names and model formats. Applies to apps used as
-# upstream ships them, which we cannot edit, so a name means the feature
-# is there. NOT to noai builds: their patches remove the features, but the
-# names survive as dead text (every language's "Automatically transcribe
-# clips" in the i18n tables), so for those ML_CODE is the proof.
+# had none (no noai/<app>.py), so a name means a release added one. NOT to
+# the noai ones: their patches remove the features, but the names survive
+# as dead text (every language's "Automatically transcribe clips" in the
+# i18n tables), so for those ML_CODE is the proof.
+# PROMO: the ArtCraft community and project links -- the Discord invite,
+# getartcraft.com, the GitHub repo and its issue tracker -- that every app
+# shows in its header, Home, About and Help menu. delink/<app>.py removes
+# them; any URL left in the build means a button or menu item still opens
+# one. (The UI text, "Join the ArtCraft Discord", can survive in translation
+# tables, so the URL is the proof.) The craft-fonts repo is named only in the
+# font attribution, which stays.
+PROMO='discord\.(gg|com)/|getartcraft\.com|github\.com/storytold/[a-z-]*'
 AI_NAMES='whisper|kokoro|mobilesam|mediapipe|onnxruntime|\.onnx\b|\.safetensors|\brten\b|\bocrs\b|burn_tensor|burn_core|AI Denoise|AI assistant|Bring your own model'
 
 WORK=$(mktemp -d /var/tmp/craft.XXXXXX)
@@ -74,13 +87,17 @@ trap 'rm -rf "$WORK"' EXIT
 while read -r app repo hub mode <&3; do
   [ -n "$app" ] && wanted "$app" || continue
   live=/var/www/$app.slippylabs.com
-  tag=$(gh release view -R "$repo" --json tagName -q .tagName)
+  have=$(sudo cat "$live/.version" 2>/dev/null || true)
+  if [ "$REBUILD" = 1 ] && [ -n "$have" ]; then
+    tag=${have%%+*}
+  else
+    tag=$(gh release view -R "$repo" --json tagName -q .tagName)
+  fi
   ver=${tag#v}
-  # A source-built app is recorded as "<tag>+noai", so a later switch between
+  # A source-built app is recorded as "<tag>+src", so a later switch between
   # the upstream zip and our build is never mistaken for "already live".
   want=$tag
-  [ "${mode:-}" = noai ] && want=$tag+noai
-  have=$(sudo cat "$live/.version" 2>/dev/null || true)
+  [ "${mode:-}" = src ] && want=$tag+src
   if [ "$FORCE" = 0 ] && [ "$have" = "$want" ]; then
     echo "$app: $want already live"
     continue
@@ -90,9 +107,10 @@ while read -r app repo hub mode <&3; do
   d=$WORK/$app
   mkdir -p "$d/dl" "$d/x"
   zip=$app-web-$ver.zip
-  if [ "${mode:-}" = noai ]; then
-    # Upstream's zip carries AI features; build it ourselves with them taken
-    # out (noai/<app>.py). This takes minutes, not seconds.
+  if [ "${mode:-}" = src ]; then
+    # Upstream's zip carries promo links (and for some, AI features); build
+    # it ourselves with them taken out (delink/<app>.py, noai/<app>.py).
+    # This takes minutes, not seconds.
     built=$(noai/build.sh "$app" "$repo" "$tag" "$d/dl")
     [ "$(basename "$built")" = "$zip" ] || { echo "$app: build wrote $built, expected $zip" >&2; exit 1; }
   else
@@ -111,16 +129,21 @@ while read -r app repo hub mode <&3; do
   src=$d/x/$app-web-$ver
   [ -f "$src/index.html" ] || { echo "$app: no index.html in $zip" >&2; exit 1; }
 
-  # No app here may use AI: a build that carries it -- an upstream release
-  # that adds it, or a noai build whose patch missed something -- is refused
-  # and the live build is left alone.
+  # No app here may use AI or link out to the ArtCraft community: a build
+  # that does -- an upstream release that adds it, or a patch that missed
+  # something -- is refused and the live build is left alone.
   strs=$(find "$src" -type f \( -name '*.wasm' -o -name '*.js' \) -exec strings -n 4 {} +)
   ai=$(LC_ALL=C grep -o -E "$ML_CODE" <<<"$strs" | sort -u | paste -sd, - || true)
-  if [ -z "$ai" ] && [ "${mode:-}" != noai ]; then
+  if [ -z "$ai" ] && [ ! -f "noai/$app.py" ]; then
     ai=$(LC_ALL=C grep -o -i -E "$AI_NAMES" <<<"$strs" | sort -u | paste -sd, - || true)
   fi
   if [ -n "$ai" ]; then
     echo "$app: $want REFUSED -- AI in the build: $ai" >&2
+    exit 1
+  fi
+  promo=$(LC_ALL=C grep -o -i -E "$PROMO" <<<"$strs" | grep -v -i 'storytold/craft-fonts' | sort -u | paste -sd, - || true)
+  if [ -n "$promo" ]; then
+    echo "$app: $want REFUSED -- promo links in the build: $promo" >&2
     exit 1
   fi
 

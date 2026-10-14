@@ -1,19 +1,20 @@
 # app        upstream repo              hub       build
 #
 # No app here may use AI (the site owner's rule, 2026-10-11): an AI feature
-# inside an app is removed, an app that is mostly AI is not hosted. Rows
-# marked "noai" are built from source by noai/build.sh with noai/<app>.py
-# applied, which strips their AI features; the rest are used as upstream
-# ships them. sync.sh refuses any build that still carries AI.
-photocraft   storytold/photocraft       art
-vectorcraft  storytold/vectorcraft      art
-designcraft  storytold/designcraft      art
-lightcraft   storytold/lightcraft       art       noai
-filmcraft    storytold/filmcraft        art       noai
-effectcraft  storytold/effectcraft      art       noai
-wordcraft    storytold/wordcraft        projects
-gridcraft    storytold/gridcraft        projects
-pdfcraft     storytold/pdfcraft         projects  noai
-deckcraft    storytold/deckcraft        projects
-cadcraft     storytold/cadcraft         projects
-soundcraft   storytold/soundcraft       music
+# inside an app is removed, an app that is mostly AI is not hosted. Nor may
+# one link out to the ArtCraft community (Discord, getartcraft.com, GitHub,
+# 2026-10-13). So every row is "src": built from source by noai/build.sh
+# with delink/<app>.py applied, plus noai/<app>.py where the app has AI
+# features. sync.sh refuses any build that still carries AI or a promo link.
+photocraft   storytold/photocraft       art       src
+vectorcraft  storytold/vectorcraft      art       src
+designcraft  storytold/designcraft      art       src
+lightcraft   storytold/lightcraft       art       src
+filmcraft    storytold/filmcraft        art       src
+effectcraft  storytold/effectcraft      art       src
+wordcraft    storytold/wordcraft        projects  src
+gridcraft    storytold/gridcraft        projects  src
+pdfcraft     storytold/pdfcraft         projects  src
+deckcraft    storytold/deckcraft        projects  src
+cadcraft     storytold/cadcraft         projects  src
+soundcraft   storytold/soundcraft       music     src
