@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Hub card banners for the Craft Suite apps.
 
-    shots.py art      ~/art.slippylabs.com/shots
-    shots.py projects ~/projects.slippylabs.com/shots
-    shots.py music    ~/music.slippylabs.com/shots   # then tools/stamp_shots.py there
-    shots.py art DIR photocraft vectorcraft     # just these
+    shots.py crafts   ~/crafts.slippylabs.com/shots  # all twelve
+    shots.py music    ~/music.slippylabs.com/shots   # SoundCraft; then tools/stamp_shots.py there
+    shots.py crafts DIR photocraft vectorcraft    # just these
 
 Each app is booted headlessly against the LOCAL origin (so a fresh install
 can be photographed before Cloudflare has seen it), left to settle on its own
@@ -12,7 +11,7 @@ start screen, and written as a 640x360 <app>.webp. There is nothing to drive:
 every app opens on a start screen or a bundled demo document that is already
 the picture worth showing. Run with the Playwright venv:
 
-    ~/projects/medievalmmo-dev/venv/bin/python tools/shots.py art DIR
+    ~/projects/medievalmmo-dev/venv/bin/python tools/shots.py crafts DIR
 
 Then regenerate the hub's shots-manifest.js and bump its ?v= (see the hub's
 README). Exits non-zero if any app fails to boot.
@@ -34,7 +33,7 @@ def apps_for(hub):
     out = []
     for line in (ROOT / 'apps.txt').read_text().splitlines():
         f = line.split()
-        if f and not f[0].startswith('#') and f[2] == hub:
+        if f and not f[0].startswith('#') and hub in f[2].split(','):
             out.append(f[0])
     return out
 

@@ -10,18 +10,18 @@ code lives here.
 
 | App | Subdomain | Listed on |
 |---|---|---|
-| PhotoCraft (image editor) | photocraft.slippylabs.com | art.slippylabs.com |
-| VectorCraft (vector illustration) | vectorcraft.slippylabs.com | art |
-| LightCraft (photo library + raw developer) * | lightcraft.slippylabs.com | art |
-| FilmCraft (video editor) * | filmcraft.slippylabs.com | art |
-| EffectCraft (motion graphics) * | effectcraft.slippylabs.com | art |
-| DesignCraft (page layout) | designcraft.slippylabs.com | art |
-| WordCraft (word processor) | wordcraft.slippylabs.com | projects.slippylabs.com |
-| GridCraft (spreadsheets) | gridcraft.slippylabs.com | projects |
-| PdfCraft (PDF workbench) * | pdfcraft.slippylabs.com | projects |
-| DeckCraft (slides) | deckcraft.slippylabs.com | projects |
-| CADCraft (CAD + drafting) | cadcraft.slippylabs.com | projects |
-| SoundCraft (DAW) | soundcraft.slippylabs.com | music |
+| PhotoCraft (image editor) | photocraft.slippylabs.com | crafts.slippylabs.com |
+| VectorCraft (vector illustration) | vectorcraft.slippylabs.com | crafts |
+| LightCraft (photo library + raw developer) * | lightcraft.slippylabs.com | crafts |
+| FilmCraft (video editor) * | filmcraft.slippylabs.com | crafts |
+| EffectCraft (motion graphics) * | effectcraft.slippylabs.com | crafts |
+| DesignCraft (page layout) | designcraft.slippylabs.com | crafts |
+| WordCraft (word processor) | wordcraft.slippylabs.com | crafts |
+| GridCraft (spreadsheets) | gridcraft.slippylabs.com | crafts |
+| PdfCraft (PDF workbench) * | pdfcraft.slippylabs.com | crafts |
+| DeckCraft (slides) | deckcraft.slippylabs.com | crafts |
+| CADCraft (CAD + drafting) | cadcraft.slippylabs.com | crafts |
+| SoundCraft (DAW) | soundcraft.slippylabs.com | crafts, and music.slippylabs.com |
 
 Every app is built here from source with its promo links removed; \* also
 with its AI features removed.
@@ -117,8 +117,7 @@ The installed tag is recorded in `.version` there.
 ## Hub banners
 
 ```sh
-~/projects/medievalmmo-dev/venv/bin/python tools/shots.py art ~/art.slippylabs.com/shots
-~/projects/medievalmmo-dev/venv/bin/python tools/shots.py projects ~/projects.slippylabs.com/shots
+~/projects/medievalmmo-dev/venv/bin/python tools/shots.py crafts ~/crafts.slippylabs.com/shots
 ~/projects/medievalmmo-dev/venv/bin/python tools/shots.py music ~/music.slippylabs.com/shots
 ```
 
