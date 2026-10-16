@@ -29,12 +29,26 @@ git clone -q --depth 1 --branch "$tag" "https://github.com/$repo" "$work/src" 2>
 python3 -E -s "$HERE/../delink/$app.py" "$work/src" >&2
 if [ -f "$HERE/$app.py" ]; then python3 -E -s "$HERE/$app.py" "$work/src" >&2; fi
 
-fonts=$(grep -A3 'repository: storytold/craft-fonts' "$work/src/.github/workflows/release.yml" 2>/dev/null |
-  grep -oE 'ref: [0-9a-f]{40}' | head -1 | cut -d' ' -f2 || true)
+# The release workflow pins the craft-fonts commit in one of three ways:
+#   ref: <sha>              under `repository: storytold/craft-fonts` (most apps)
+#   CRAFT_FONTS_REF: <sha>  a workflow env var that step reads (DeckCraft)
+#   craft-fonts-ref: <sha>  an input to storytold/craft-common-actions' shared
+#                           release workflow (PhotoCraft)
+# Reading only the first form built DeckCraft without its embedded BIZ
+# UDPGothic Japanese UI font, and PhotoCraft without its served fonts.
+rel="$work/src/.github/workflows/release.yml"
+fonts=$( { grep -A3 'repository: storytold/craft-fonts' "$rel" | grep -oE 'ref: [0-9a-f]{40}'
+           grep -oE '(CRAFT_FONTS_REF|craft-fonts-ref): *[0-9a-f]{40}' "$rel"
+         } 2>/dev/null | head -1 | grep -oE '[0-9a-f]{40}' || true)
 if [ -n "$fonts" ]; then
   git clone -q --filter=blob:none https://github.com/storytold/craft-fonts "$work/fonts"
   git -C "$work/fonts" checkout -q "$fonts"
   export CRAFT_FONTS_DIR="$work/fonts" CRAFT_FONTS_REQUIRED=1
+  # PhotoCraft's wasm embeds no craft-fonts (its size gate); its web build
+  # serves them next to the app instead, fetched on demand: package.sh copies
+  # fonts/manifest.txt and every font and licence file it lists. Unset, the
+  # app 404s fonts/manifest.txt on every load and offers no extra fonts.
+  [ "$app" = photocraft ] && export PHOTOCRAFT_WEB_FONTS_DIR="$work/fonts"
 fi
 
 export CARGO_BUILD_JOBS=${CARGO_BUILD_JOBS:-2}
