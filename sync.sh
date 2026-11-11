@@ -182,6 +182,8 @@ while read -r app repo hub mode <&3; do
   # A desktop-width layout viewport so the app is usable on a phone (see the
   # script's docstring).
   python3 tools/mobilefit.py "$src"
+  # The "Craft Suite / Home" strip above the app (2026-11-10; see the script).
+  python3 tools/backstrip.py "$src"
   find "$src" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.html' \
     -o -name '*.otf' -o -name '*.ttf' -o -name '*.json' \) -exec gzip -9kfn {} +
   echo "$want" > "$src/.version"
